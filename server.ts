@@ -1,49 +1,63 @@
 import { serve } from "https://deno.land/std@0.167.0/http/server.ts";
 
-const workingDir = Deno.cwd();
+const images = await loadFiles("images");
 
-let id = 1;
+const routes = {
+  root: new URLPattern({ pathname: "/" }),
+  docs: new URLPattern({ pathname: "/docs" }),
+  statistics: new URLPattern({ pathname: "/statistics" }),
+  specific: new URLPattern({ pathname: "/:id" }),
+};
 
-const images: { id: number; path: URL }[] = [];
-
-for await (const dirEntry of Deno.readDir("./images")) {
-  images.push({
-    id: id++,
-    path: new URL(`${workingDir}/images/${dirEntry.name}`, import.meta.url),
-  });
-}
-
-const SPECIFIC_IMAGE_ROUTE = new URLPattern({ pathname: "/:id" });
-const ROOT_IMAGE_ROUTE = new URLPattern({ pathname: "/" });
-
-serve(async (req) => {
-  const specificImage = SPECIFIC_IMAGE_ROUTE.exec(req.url);
-
-  if (specificImage) {
-    const id = +specificImage.pathname.groups.id;
-
-    const result = images.find((image) => image.id === id);
-
-    if (!result) {
-      return new Response("Not found.", {
-        status: 404,
-      });
-    }
-
-    const response = await fetch(result.path);
-    return new Response(response.body);
-  }
-
-  const rootRoute = ROOT_IMAGE_ROUTE.exec(req.url);
-
-  if (rootRoute) {
+async function serverHandler({ url }: Request) {
+  if (routes.root.exec(url)) {
     const randomPic = images[Math.floor(Math.random() * images.length)];
     const response = await fetch(randomPic.path);
 
     return new Response(response.body);
   }
 
-  return new Response("Not found.", {
-    status: 404,
-  });
-});
+  if (routes.docs.exec(url)) {
+    return Response.redirect("https://github.com/UltiRequiem/kira-api");
+  }
+
+  if (routes.statistics.exec(url)) {
+    return Response.json({ totalImages: images.length, images });
+  }
+
+  const specific = routes.specific.exec(url);
+
+  if (specific) {
+    const id = parseInt(specific.pathname.groups.id);
+
+    const result = images.find((image) => image.id === id);
+
+    if (!result) {
+      return Response.json(
+        { error: "Not found (try /statistics)" },
+        { status: 404 },
+      );
+    }
+
+    const response = await fetch(result.path);
+    return new Response(response.body);
+  }
+
+  return new Response(undefined, { status: 404 });
+}
+
+serve(serverHandler);
+
+async function loadFiles(dir: string) {
+  let id = 1;
+
+  const files: { id: number; path: URL }[] = [];
+
+  for await (const dirEntry of Deno.readDir(`./${dir}`)) {
+    const path = new URL(`./${dir}/${dirEntry.name}`, import.meta.url);
+
+    files.push({ id: id++, path });
+  }
+
+  return files;
+}
