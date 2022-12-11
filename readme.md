@@ -4,6 +4,10 @@ Kira is my pet 🐕
 
 ![A Kira's pic](./images/chilling.jpg)
 
+[Live coding](https://youtu.be/nMgS9nG4kMc) 👇
+
+[![Video Thumbnail](./youtube.png)](https://youtu.be/nMgS9nG4kMc)
+
 ## Docs
 
 ### `/`
